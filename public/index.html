@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>로또 번호 예측기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="eyebrow">LOTTO 6/45 · 데이터 기반 예측</p>
+      <h1><span id="targetDraw">–</span>회 추천 번호</h1>
+      <p class="sub">추첨일 <strong id="targetDate">–</strong> · <span id="countdown">–</span></p>
+      <p class="meta" id="dataMeta">데이터 불러오는 중…</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="card-head">
+        <h2>이번 주 추천 5세트</h2>
+        <div class="actions">
+          <button id="btnReroll" class="ghost" title="같은 모델로 다른 조합을 뽑습니다">다른 조합 보기</button>
+          <button id="btnCopy">번호 복사</button>
+        </div>
+      </div>
+      <ol id="sets" class="sets"></ol>
+      <p class="hint" id="seedHint"></p>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <h2>지난 회차 결과</h2>
+        <div id="lastResult"></div>
+        <div id="lastCheck" class="lastcheck"></div>
+      </section>
+
+      <section class="card">
+        <h2>모델 가중치 조정</h2>
+        <p class="hint">각 요소의 비중을 바꾸면 추천 번호가 다시 계산됩니다.</p>
+        <div id="weights" class="weights"></div>
+        <button id="btnResetW" class="ghost small">기본값으로</button>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>번호별 모델 점수</h2>
+        <div class="seg" id="chartMode">
+          <button data-mode="score" class="on">종합 점수</button>
+          <button data-mode="longFreq">장기 빈도</button>
+          <button data-mode="recentFreq">최근 빈도</button>
+          <button data-mode="overdue">미출현 간격</button>
+        </div>
+      </div>
+      <div id="chart" class="chart" role="img" aria-label="번호별 점수 막대 그래프"></div>
+      <div id="tooltip" class="tooltip" hidden></div>
+    </section>
+
+    <section class="card">
+      <h2>백테스트 (최근 52회)</h2>
+      <p class="hint">각 회차마다 <em>그 이전 데이터만</em>으로 학습해 5세트를 예측하고, 실제 당첨번호와 비교했습니다.</p>
+      <div id="backtest"><p class="hint">계산 중…</p></div>
+    </section>
+
+    <section class="card how">
+      <h2>예측 모델은 이렇게 동작합니다</h2>
+      <ol>
+        <li><b>번호 점수 계산</b> — 1회부터 최신 회차까지의 당첨번호로 장기 출현 빈도, 최근 출현 빈도(반감기 26회 지수 감쇠), 미출현 간격(기대 간격 7.5회 대비), 직전 회차 이월 경향을 계산해 가중합합니다.</li>
+        <li><b>후보 조합 생성</b> — 번호 점수에 비례한 확률로 6,000개 후보 조합을 뽑습니다. 회차 번호를 난수 시드로 써서 같은 주에는 항상 같은 결과가 나옵니다.</li>
+        <li><b>패턴 필터</b> — 과거 당첨 조합 분포에서 학습한 조건(합계 하위·상위 10% 제외, 홀짝·고저 6:0 제외, 연속번호 3개 이상 제외, 끝수·번호대 다양성, AC값, 기존 1등 조합 제외)을 통과한 조합만 남깁니다.</li>
+        <li><b>최종 선택</b> — 번호 점수, 동반 출현(pair) 점수, 합계·홀짝 적합도로 조합을 평가하고, 서로 3개 이상 겹치지 않는 상위 5세트를 고릅니다.</li>
+      </ol>
+      <p class="warn">⚠️ 로또 추첨은 매 회 독립적인 무작위 시행이므로 과거 데이터로 당첨 확률을 높일 수 없습니다. 1등 확률은 어떤 번호든 1/8,145,060로 같습니다. 재미와 참고용으로만 이용하시고, 구매는 적정 금액 안에서 하세요.</p>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    데이터 출처: <a href="https://github.com/smok95/lotto" target="_blank" rel="noopener">smok95/lotto</a> (동행복권 추첨 결과) · 정확한 당첨번호는 <a href="https://www.dhlottery.co.kr" target="_blank" rel="noopener">동행복권</a>에서 확인하세요.
+  </footer>
+
+  <script src="model.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
