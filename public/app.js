@@ -71,7 +71,6 @@
     renderLast(t.last);
     renderWeights();
     run();
-    setTimeout(renderBacktest, 50);
   }
 
   function tickCountdown(target) {
@@ -87,6 +86,8 @@
     currentSets = M.predict(model, { seed: t.drawNo + reroll * 100003 });
     renderSets();
     renderChart();
+    renderLastCheck();
+    scheduleBacktest();
     $('seedHint').textContent = reroll
       ? `대안 조합 #${reroll} — 같은 모델에서 다른 시드로 뽑았습니다.`
       : `이번 주(${t.drawNo}회) 기본 추천입니다. 같은 주에는 언제 열어도 같은 번호가 나옵니다.`;
@@ -109,11 +110,15 @@
       <p class="hint">${last.draw_no}회 · ${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}</p>
       <div class="balls" style="margin-top:8px">${last.numbers.map((n) => ball(n)).join('')}<span class="plus">+</span>${ball(last.bonus_no)}</div>
       ${last.prize1 ? `<p class="hint">1등 ${last.winners1}명 · 1인당 ${Math.round(last.prize1 / 1e8 * 10) / 10}억 원</p>` : ''}`;
+  }
 
-    // 지난 회차에 이 모델이 추천했을 번호와 비교
-    const prev = M.train(draws.slice(0, -1));
-    const sets = M.predict(prev, { seed: last.draw_no });
-    $('lastCheck').innerHTML = `<p class="hint" style="margin:0 0 4px">이 모델이 ${last.draw_no}회에 추천했던 번호</p>` + sets.map((s, i) => {
+  // 지난 회차에 (현재 가중치의) 모델이 추천했을 번호와 비교
+  function renderLastCheck() {
+    const last = draws[draws.length - 1];
+    const prev = M.train(draws.slice(0, -1), weights);
+    const sets = M.predict(prev, { seed: last.draw_no }); // 백테스트와 같은 시드 → 표의 마지막 행과 일치
+    const total = sets.reduce((a, s) => a + s.numbers.filter((n) => last.numbers.includes(n)).length, 0);
+    $('lastCheck').innerHTML = `<p class="hint" style="margin:0 0 4px">현재 가중치의 모델이 ${last.draw_no}회에 추천했을 번호 · 총 ${total}개 일치 (세트당 ${(total / sets.length).toFixed(1)}개)</p>` + sets.map((s, i) => {
       const hits = s.numbers.filter((n) => last.numbers.includes(n)).length;
       return `<div class="row"><b style="width:14px;color:var(--muted)">${'ABCDE'[i]}</b>
         <div class="balls">${s.numbers.map((n) => ball(n, 'sm ' + (last.numbers.includes(n) ? '' : 'miss'))).join('')}</div>
@@ -153,14 +158,27 @@
     }
   }
 
+  // 가중치 변경 시 슬라이더를 멈춘 뒤 백테스트를 다시 계산 (진행 중인 계산은 취소)
+  let btTimer = null;
+  let btWorker = null;
+  function scheduleBacktest() {
+    clearTimeout(btTimer);
+    if (btWorker) { btWorker.terminate(); btWorker = null; }
+    const box = $('backtest');
+    if (box.querySelector('.kpis')) box.style.opacity = 0.45;
+    btTimer = setTimeout(renderBacktest, 350);
+  }
+
   function renderBacktest() {
+    const w = Object.assign({}, weights);
+    const done = (bt) => { $('backtest').style.opacity = 1; showBacktest(bt); };
     try {
-      const worker = new Worker('backtest-worker.js');
-      worker.onmessage = (e) => { showBacktest(e.data); worker.terminate(); };
-      worker.onerror = () => showBacktest(M.backtest(draws, 52));
-      worker.postMessage({ draws, weeks: 52 });
+      const worker = (btWorker = new Worker('backtest-worker.js'));
+      worker.onmessage = (e) => { if (btWorker === worker) { done(e.data); btWorker = null; } worker.terminate(); };
+      worker.onerror = () => done(M.backtest(draws, 52, w));
+      worker.postMessage({ draws, weeks: 52, weights: w });
     } catch {
-      showBacktest(M.backtest(draws, 52));
+      done(M.backtest(draws, 52, w));
     }
   }
 

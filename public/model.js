@@ -50,18 +50,19 @@
 
   function comboFeatures(c) {
     const s = c.slice().sort((a, b) => a - b);
-    let sum = 0, odd = 0, low = 0, consecutive = 0;
+    let sum = 0, odd = 0, low = 0, consecutive = 0, run = 1, maxRun = 1;
     const ends = new Set();
     const decades = new Set();
     for (let i = 0; i < s.length; i++) {
       sum += s[i];
       if (s[i] % 2) odd++;
       if (s[i] <= 22) low++;
-      if (i && s[i] - s[i - 1] === 1) consecutive++;
+      if (i && s[i] - s[i - 1] === 1) { consecutive++; run++; maxRun = Math.max(maxRun, run); }
+      else run = 1;
       ends.add(s[i] % 10);
       decades.add(Math.floor((s[i] - 1) / 10));
     }
-    return { sum, odd, low, consecutive, endDigits: ends.size, decades: decades.size, ac: acValue(s) };
+    return { sum, odd, low, consecutive, maxRun, endDigits: ends.size, decades: decades.size, ac: acValue(s) };
   }
 
   // AC값(산술 복잡도): 서로 다른 차이값 개수 - 5
@@ -159,7 +160,8 @@
     if (f.sum < F.sumMin || f.sum > F.sumMax) return false;
     if (f.odd === 0 || f.odd === 6) return false;
     if (f.low === 0 || f.low === 6) return false;
-    if (f.consecutive > 2) return false;
+    if (f.maxRun >= 3) return false;     // 3개 이상 연속된 번호 (예: 16·17·18) 제외
+    if (f.consecutive > 2) return false; // 연속 쌍이 3개 이상 (예: 1·2, 8·9, 30·31) 제외
     if (f.endDigits < 4) return false;
     if (f.decades < 3) return false;
     if (f.ac < F.acMin) return false;
@@ -228,12 +230,12 @@
 
   // ---------- 백테스트 ----------
   // 최근 `weeks`개 회차 각각에 대해 그 이전 데이터만으로 학습 → 5세트 예측 → 실제 결과와 비교
-  function backtest(draws, weeks, opts) {
+  function backtest(draws, weeks, weights) {
     const rows = [];
     const start = Math.max(50, draws.length - weeks);
     for (let t = start; t < draws.length; t++) {
-      const m = train(draws.slice(0, t));
-      const sets = predict(m, Object.assign({ seed: draws[t].draw_no }, opts || {}));
+      const m = train(draws.slice(0, t), weights);
+      const sets = predict(m, { seed: draws[t].draw_no });
       const actual = draws[t].numbers;
       const matches = sets.map((s) => s.numbers.filter((n) => actual.includes(n)).length);
       rows.push({ draw_no: draws[t].draw_no, actual, matches, best: Math.max(...matches) });
@@ -245,7 +247,7 @@
     return { rows, avgMatch: avg, randomExpected: (PICK * PICK) / N, dist, totalSets };
   }
 
-  const api = { train, predict, backtest, comboFeatures, N, PICK, DEFAULT_WEIGHTS };
+  const api = { train, predict, backtest, comboFeatures, passesFilters, N, PICK, DEFAULT_WEIGHTS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LottoModel = api;
 })(typeof self !== 'undefined' ? self : this);
