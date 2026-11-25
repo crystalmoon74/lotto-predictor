@@ -24,7 +24,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download latest draw results
         run: |
@@ -32,11 +32,11 @@ jobs:
           curl -fsSL --retry 3 -o public/data/all.json https://smok95.github.io/lotto/results/all.json
           node -e "const d=require('./public/data/all.json'); console.log('draws:', d.length, 'latest:', d[d.length-1].draw_no)"
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: public
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
